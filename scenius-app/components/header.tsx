@@ -1,0 +1,51 @@
+import Link from 'next/link'
+import { logoutAction } from '@/lib/actions/auth'
+import { createClient } from '@/lib/supabase/server'
+
+export async function Header() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let username: string | null = null
+  if (user) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single()
+    username = data?.username ?? null
+  }
+
+  return (
+    <header className="sticky top-0 z-10 border-b bg-white">
+      <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <Link href="/" className="text-lg font-bold">
+          scenius
+        </Link>
+        <nav className="flex items-center gap-4 text-sm">
+          {username ? (
+            <>
+              <span className="text-neutral-500">{username}</span>
+              <form action={logoutAction}>
+                <button type="submit" className="hover:text-neutral-800">
+                  logout
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="hover:text-neutral-800">
+                log in
+              </Link>
+              <Link href="/register" className="font-medium hover:text-neutral-800">
+                register
+              </Link>
+            </>
+          )}
+        </nav>
+      </div>
+    </header>
+  )
+}
