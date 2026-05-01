@@ -1,8 +1,10 @@
 import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
+import { type SortKey } from '@/lib/sorting'
+import type { VoteValue } from '@/lib/voting'
 
-export type SortKey = 'hot' | 'new' | 'top'
+export type { SortKey }
 
 export type PostWithAuthor = {
   id: number
@@ -77,4 +79,36 @@ export async function getPostById(id: number): Promise<PostWithAuthor | null> {
     .single()
   if (!data) return null
   return mapRow(data)
+}
+
+export async function getUserVotesForPosts(
+  userId: string,
+  postIds: number[],
+): Promise<Map<number, VoteValue>> {
+  if (postIds.length === 0) return new Map()
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('votes')
+    .select('post_id, value')
+    .eq('user_id', userId)
+    .in('post_id', postIds)
+  const map = new Map<number, VoteValue>()
+  for (const row of data ?? []) {
+    map.set(row.post_id, row.value as VoteValue)
+  }
+  return map
+}
+
+export async function getUserVoteForPost(
+  userId: string,
+  postId: number,
+): Promise<VoteValue | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('votes')
+    .select('value')
+    .eq('user_id', userId)
+    .eq('post_id', postId)
+    .maybeSingle()
+  return (data?.value ?? null) as VoteValue | null
 }

@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation'
 import { DeleteButton } from '@/components/posts/delete-button'
+import { VoteButtons } from '@/components/posts/vote-buttons'
 import { createClient } from '@/lib/supabase/server'
-import { getPostById } from '@/lib/queries/posts'
+import { getPostById, getUserVoteForPost } from '@/lib/queries/posts'
+import type { VoteValue } from '@/lib/voting'
 
 export default async function PostPage({
   params,
@@ -19,15 +21,24 @@ export default async function PostPage({
     data: { user },
   } = await supabase.auth.getUser()
 
+  const userVote: VoteValue | null = user
+    ? await getUserVoteForPost(user.id, postId)
+    : null
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <article>
-        <h1 className="text-2xl font-semibold">{post.title}</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          by {post.author_username} &middot; score: {post.score} &middot;{' '}
-          {new Date(post.created_at).toLocaleDateString()}
-        </p>
-        {post.body && <p className="mt-4 whitespace-pre-wrap">{post.body}</p>}
+        <div className="flex items-start gap-4">
+          <VoteButtons postId={post.id} initialScore={post.score} userVote={userVote} />
+          <div className="flex-1">
+            <h1 className="text-2xl font-semibold">{post.title}</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              by {post.author_username} &middot;{' '}
+              {new Date(post.created_at).toLocaleDateString()}
+            </p>
+            {post.body && <p className="mt-4 whitespace-pre-wrap">{post.body}</p>}
+          </div>
+        </div>
         {user?.id === post.author_id && (
           <div className="mt-6">
             <DeleteButton postId={post.id} />

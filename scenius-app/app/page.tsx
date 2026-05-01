@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import { PostCard } from '@/components/posts/post-card'
 import { createClient } from '@/lib/supabase/server'
-import { listPosts, type SortKey } from '@/lib/queries/posts'
-
-const SORTS: SortKey[] = ['hot', 'new', 'top']
+import { getUserVotesForPosts, listPosts } from '@/lib/queries/posts'
+import { isValidSortKey, VALID_SORT_KEYS } from '@/lib/sorting'
 
 export default async function HomePage({
   searchParams,
@@ -11,7 +10,7 @@ export default async function HomePage({
   searchParams: Promise<{ sort?: string }>
 }) {
   const { sort: rawSort } = await searchParams
-  const sort: SortKey = SORTS.includes(rawSort as SortKey) ? (rawSort as SortKey) : 'hot'
+  const sort = isValidSortKey(rawSort) ? rawSort : 'hot'
 
   const supabase = await createClient()
   const {
@@ -19,12 +18,15 @@ export default async function HomePage({
   } = await supabase.auth.getUser()
 
   const posts = await listPosts(sort)
+  const userVotes = user
+    ? await getUserVotesForPosts(user.id, posts.map((p) => p.id))
+    : new Map()
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
         <nav className="flex gap-4 text-sm">
-          {SORTS.map((s) => (
+          {VALID_SORT_KEYS.map((s) => (
             <Link
               key={s}
               href={`/?sort=${s}`}
@@ -47,7 +49,9 @@ export default async function HomePage({
         {posts.length === 0 ? (
           <p className="text-neutral-500">No posts yet.</p>
         ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} />)
+          posts.map((post) => (
+            <PostCard key={post.id} post={post} userVote={userVotes.get(post.id) ?? null} />
+          ))
         )}
       </div>
     </main>

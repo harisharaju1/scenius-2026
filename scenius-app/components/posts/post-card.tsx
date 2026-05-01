@@ -1,14 +1,22 @@
 import Link from 'next/link'
 import type { PostWithAuthor } from '@/lib/queries/posts'
+import type { VoteValue } from '@/lib/voting'
+import { VoteButtons } from './vote-buttons'
 
-export function PostCard({ post }: { post: PostWithAuthor }) {
+type Props = {
+  post: PostWithAuthor
+  userVote?: VoteValue | null
+}
+
+export function PostCard({ post, userVote = null }: Props) {
   return (
     <article className="rounded-md border p-4">
       <div className="flex items-start gap-4">
-        <div className="flex min-w-10 flex-col items-center text-center">
-          <span className="text-sm font-semibold">{post.score}</span>
-          <span className="text-xs text-neutral-400">pts</span>
-        </div>
+        <VoteButtons
+          postId={post.id}
+          initialScore={post.score}
+          userVote={userVote}
+        />
         <div className="flex-1">
           <Link href={`/posts/${post.id}`} className="font-medium hover:underline">
             {post.title}
