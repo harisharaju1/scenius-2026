@@ -39,7 +39,7 @@ export function VoteButtons({ postId, initialScore, userVote }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center select-none">
+    <div className="flex items-center gap-1 select-none">
       <button
         onClick={() => handleVote(1)}
         disabled={isPending}
@@ -50,7 +50,7 @@ export function VoteButtons({ postId, initialScore, userVote }: Props) {
       >
         ▲
       </button>
-      <span className="text-sm font-medium tabular-nums leading-none">{optimistic.score}</span>
+      <span className="min-w-[2ch] text-center text-sm font-medium tabular-nums">{optimistic.score}</span>
       <button
         onClick={() => handleVote(-1)}
         disabled={isPending}

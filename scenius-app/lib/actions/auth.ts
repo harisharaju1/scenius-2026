@@ -1,11 +1,13 @@
 'use server'
 import 'server-only'
 
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { fail, ok, type ActionResult } from '@/lib/actions/result'
 import { createClient } from '@/lib/supabase/server'
-import { loginInput, registerInput } from '@/lib/validation'
+import { forgotPasswordInput, loginInput, registerInput, resetPasswordInput } from '@/lib/validation'
+
+const RESET_COOKIE = 'pw_reset_pending'
 
 async function siteOrigin(): Promise<string> {
   const h = await headers()
@@ -77,4 +79,49 @@ export async function logoutAction(): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/')
+}
+
+export async function forgotPasswordAction(formData: FormData): Promise<ActionResult<void>> {
+  const parsed = forgotPasswordInput.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) {
+    return fail(
+      parsed.error.issues.map((i) => ({ field: String(i.path[0] ?? 'root'), message: i.message })),
+    )
+  }
+
+  const supabase = await createClient()
+  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: `${await siteOrigin()}/callback?next=/login/reset-password`,
+  })
+
+  // Always ok — never reveal whether an email is registered
+  return ok(undefined)
+}
+
+export async function resetPasswordAction(formData: FormData): Promise<ActionResult<void>> {
+  // Require the cookie stamped by the callback route — rejects direct POST from
+  // any logged-in session that didn't arrive via the recovery email link.
+  const jar = await cookies()
+  if (!jar.get(RESET_COOKIE)) {
+    return fail([{ field: 'root', message: 'Invalid or expired reset link. Please request a new one.' }])
+  }
+
+  const parsed = resetPasswordInput.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) {
+    return fail(
+      parsed.error.issues.map((i) => ({ field: String(i.path[0] ?? 'root'), message: i.message })),
+    )
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+
+  if (error) {
+    return fail([{ field: 'root', message: error.message }])
+  }
+
+  // Consume the cookie — one successful reset per recovery link
+  jar.delete(RESET_COOKIE)
+
+  return ok(undefined)
 }

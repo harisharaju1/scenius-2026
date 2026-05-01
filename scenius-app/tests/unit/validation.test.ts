@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loginInput, postInput, registerInput } from '@/lib/validation'
+import { forgotPasswordInput, loginInput, postInput, registerInput, resetPasswordInput } from '@/lib/validation'
 
 describe('registerInput', () => {
   const valid = { username: 'alice', email: 'alice@example.com', password: 'secret123' }
@@ -53,6 +53,53 @@ describe('loginInput', () => {
 
   it('rejects empty password', () => {
     expect(loginInput.safeParse({ ...valid, password: '' }).success).toBe(false)
+  })
+})
+
+describe('forgotPasswordInput', () => {
+  it('accepts a valid email', () => {
+    expect(forgotPasswordInput.safeParse({ email: 'alice@example.com' }).success).toBe(true)
+  })
+
+  it('rejects an invalid email', () => {
+    const r = forgotPasswordInput.safeParse({ email: 'not-an-email' })
+    expect(r.success).toBe(false)
+    if (!r.success) expect(r.error.issues[0].path[0]).toBe('email')
+  })
+
+  it('rejects an empty email', () => {
+    expect(forgotPasswordInput.safeParse({ email: '' }).success).toBe(false)
+  })
+})
+
+describe('resetPasswordInput', () => {
+  const valid = { password: 'newpass1', confirmPassword: 'newpass1' }
+
+  it('accepts matching passwords of sufficient length', () => {
+    expect(resetPasswordInput.safeParse(valid).success).toBe(true)
+  })
+
+  it('rejects password shorter than 6 characters', () => {
+    const r = resetPasswordInput.safeParse({ ...valid, password: 'abc', confirmPassword: 'abc' })
+    expect(r.success).toBe(false)
+    if (!r.success) expect(r.error.issues[0].path[0]).toBe('password')
+  })
+
+  it('rejects mismatched passwords', () => {
+    const r = resetPasswordInput.safeParse({ password: 'newpass1', confirmPassword: 'different' })
+    expect(r.success).toBe(false)
+    if (!r.success) expect(r.error.issues[0].path[0]).toBe('confirmPassword')
+  })
+
+  it('rejects when confirmPassword is empty', () => {
+    const r = resetPasswordInput.safeParse({ password: 'newpass1', confirmPassword: '' })
+    expect(r.success).toBe(false)
+  })
+
+  it('accepts password at the minimum boundary (6 chars)', () => {
+    expect(
+      resetPasswordInput.safeParse({ password: 'abcdef', confirmPassword: 'abcdef' }).success,
+    ).toBe(true)
   })
 })
 

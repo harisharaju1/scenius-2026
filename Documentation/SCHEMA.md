@@ -1,7 +1,14 @@
 # Database schema
 
-Authoritative SQL lives in `scenius-app/supabase/migrations/0001_init.sql`.
+Authoritative SQL lives in `scenius-app/supabase/migrations/`.
 Generated TypeScript types live in `scenius-app/lib/supabase/types.ts` (regenerate with `pnpm db:gen`).
+
+## Migrations
+
+| File | Contents |
+|---|---|
+| `0001_init.sql` | `profiles`, `posts`, `votes`, triggers, RLS, `posts_hot` view |
+| `0002_comments.sql` | `comments` table + RLS |
 
 ## ER diagram
 
@@ -27,10 +34,19 @@ erDiagram
         smallint value "-1 or 1"
         timestamptz created_at
     }
+    comments {
+        bigserial id PK
+        bigint post_id FK
+        uuid author_id FK
+        text body "1-10000 chars"
+        timestamptz created_at
+    }
 
-    profiles ||--o{ posts  : "author_id"
-    profiles ||--o{ votes  : "user_id"
-    posts    ||--o{ votes  : "post_id"
+    profiles ||--o{ posts    : "author_id"
+    profiles ||--o{ votes    : "user_id"
+    profiles ||--o{ comments : "author_id"
+    posts    ||--o{ votes    : "post_id"
+    posts    ||--o{ comments : "post_id"
 ```
 
 ## Tables
@@ -69,10 +85,22 @@ Indexes: `posts_created_at_idx`, `posts_score_idx`, `posts_author_idx`.
 
 Composite PK `(user_id, post_id)` — one vote per user per post.
 
+### `public.comments`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigserial | PK |
+| `post_id` | bigint | FK to `posts(id)` ON DELETE CASCADE |
+| `author_id` | uuid | FK to `profiles(id)` ON DELETE CASCADE |
+| `body` | text | 1-10000 chars |
+| `created_at` | timestamptz | |
+
+Index: `comments_post_idx` on `(post_id, created_at ASC)`.
+
 ## Views
 
 ### `public.posts_hot`
-Exposes all `posts` columns plus `hot_rank`:
+Exposes all `posts` columns plus a `hot_rank` expression:
 
 ```sql
 log(greatest(abs(score), 1))
@@ -95,3 +123,4 @@ Used by the hot-sort query to avoid repeating the formula.
 | `profiles` | public | owner only | owner only | — |
 | `posts` | public | authed, as self | owner only | owner only |
 | `votes` | public | owner only | owner only | owner only |
+| `comments` | public | authed, as self | — | owner only |
