@@ -63,6 +63,7 @@ scenius-app/
     voting.ts                         # pure: nextVoteState(current, requested) → VoteState
     sorting.ts                        # pure: buildPostsQuery(sort) → { from, orderBy }
     validation.ts                     # zod schemas: registerInput, loginInput, postInput, commentInput
+    images.ts                         # pure: extractStoragePaths(body, bucketBase) → string[]
     utils.ts                          # shadcn cn() helper
     supabase/
       client.ts                       # createBrowserClient

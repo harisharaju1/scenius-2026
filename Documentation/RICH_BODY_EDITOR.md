@@ -12,7 +12,9 @@ Feature added to the post creation form: users can embed images by dragging them
 | `components/posts/post-body.tsx` | Server-renderable Component — Markdown → styled HTML |
 | `components/posts/post-form.tsx` | Updated to use `RichBodyEditor` instead of plain `Textarea` |
 | `app/posts/[id]/page.tsx` | Updated to render body via `PostBody` |
+| `lib/images.ts` | Pure helper — extracts storage paths from Markdown image syntax |
 | `supabase/migrations/0003_storage.sql` | Creates the `post-images` bucket and RLS policies |
+| `supabase/migrations/0004_post_images.sql` | `post_images` table — tracks image lifecycle per post |
 
 ---
 
@@ -71,6 +73,59 @@ Native `<textarea>` elements fire `dragover`/`drop` events but browsers intercep
 
 ---
 
+## Security: storage abuse and image lifecycle
+
+### Threat
+
+Because the `post-images` bucket is public and uploads are only gated by authentication, a script that registers an account and calls the Supabase Storage API directly can:
+
+1. Upload arbitrary images to the bucket (consuming quota on the free tier).
+2. Hotlink those URLs from any external site — using the Supabase project as a free CDN.
+3. Never create a post, leaving the images orphaned in storage indefinitely.
+
+The URL pattern (`{SUPABASE_URL}/storage/v1/object/public/post-images/{userId}/...`) is predictable once a single post with an embedded image is inspected.
+
+### Alternatives considered
+
+| Approach | Prevents | Tradeoff |
+|---|---|---|
+| **`post_images` junction table** (chosen) | Orphan accumulation; cascade-delete on post removal | Medium complexity; path extraction is regex-based on the body string |
+| Upload-on-submit instead of upload-on-drop | Images uploaded but post never submitted | High refactor cost; blocks upload progress UX |
+| Presigned upload URL via Server Action | Bypasses app-level rate limiting at the source | Medium complexity; adds a round-trip before each upload |
+| Signed URLs with expiry (private bucket) | Hotlinking | Breaks stable-URL-in-Markdown assumption; URLs expire and break old posts |
+| Scheduled orphan sweep (cron job) | Long-lived orphans from abandoned drafts | Residual gap only; complex to implement correctly |
+| Per-user storage quota in RLS | Any single user exhausting storage | Low complexity addition; does not prevent many accounts |
+
+### Chosen approach: `post_images` table
+
+Migration `0004_post_images.sql` adds a `post_images` table:
+
+```
+post_images
+  id            bigserial PK
+  post_id       bigint FK → posts(id) ON DELETE CASCADE
+  storage_path  text      — relative path within the post-images bucket
+  created_at    timestamptz
+```
+
+**On post creation** (`createPostAction`): the body is scanned for image URLs that match the bucket's public URL base. Matching paths are inserted into `post_images`. This is best-effort — a failure does not fail the post creation.
+
+**On post deletion** (`deletePostAction`):
+1. `post_images` rows for the post are fetched before deletion.
+2. The post is deleted (which cascade-deletes `post_images` rows).
+3. The corresponding storage objects are removed via `supabase.storage.from('post-images').remove(paths)`.
+
+If step 3 fails, storage objects become orphaned — but the post is gone, which is the primary intent. The reverse order (delete storage first, then post) risks leaving a post alive if storage deletion fails, which is a worse outcome.
+
+**Path extraction** lives in the pure helper `lib/images.ts` (`extractStoragePaths`) so it can be unit-tested without Supabase. Eleven unit tests cover the golden path, multiple images, non-bucket URLs, bare links, and the documented limitation (images inside fenced code blocks are not filtered because extraction works on the raw string, not the Markdown AST).
+
+### Residual risk
+
+- **Abandoned drafts**: a user uploads images and closes the tab without submitting. Those objects are never recorded in `post_images` and will not be cleaned up by the delete flow. A future scheduled sweep (or a separate orphan-cleanup job) would close this gap.
+- **Many accounts**: the approach does not prevent a determined attacker from creating many accounts. Per-user storage quotas (enforced in the storage RLS `with check` clause via a count subquery) would add a second line of defence.
+
+---
+
 ## Storage bucket
 
 Migration: `supabase/migrations/0003_storage.sql`
@@ -105,6 +160,19 @@ code block   →  <pre><code className="language-*">  →  code gets no pill; pr
 
 The distinction is made by checking whether `className` is set on the `code` element. `react-markdown` v10 assigns `language-{lang}` to code blocks but leaves inline `code` elements classless.
 
+### Known rendering gaps
+
+Elements that fall back to unstyled browser defaults:
+
+| Element | Gap |
+|---|---|
+| `h4`–`h6` | No size/weight classes; visually identical to body text |
+| `em` | Browser default italic |
+| `del` (GFM strikethrough) | Browser default |
+| GFM tables | Render as unstyled `<table>` — no borders or padding |
+| Task list checkboxes | Unstyled disabled `<input type="checkbox">` |
+| Syntax-highlighted code | Code blocks render correctly but have no colour theme |
+
 ---
 
 ## Data flow
@@ -120,8 +188,15 @@ User drops image
 
 User submits form
   └─ createPostAction(formData)
-       └─ supabase.from('posts').insert({ body: markdownString })
-            └─ body stored as raw Markdown text
+       ├─ supabase.from('posts').insert({ body: markdownString })
+       └─ extractStoragePaths(body, bucketBase)
+            └─ supabase.from('post_images').insert([{ post_id, storage_path }, …])
+
+User deletes post
+  └─ deletePostAction(postId)
+       ├─ supabase.from('post_images').select('storage_path').eq('post_id', postId)
+       ├─ supabase.from('posts').delete().eq('id', postId)   ← cascades post_images rows
+       └─ supabase.storage.from('post-images').remove([paths])
 
 Browser renders post detail
   └─ PostBody({ body })
@@ -133,7 +208,8 @@ Browser renders post detail
 
 ## Deployment checklist
 
-1. Run `pnpm db:push` — this applies `0003_storage.sql` and creates the `post-images` bucket via the Supabase CLI migration tracker. Do **not** run the SQL manually in the dashboard; doing so bypasses migration tracking and will cause `create policy` errors on the next `db:push`.
-2. Verify the bucket appears under **Storage** in the Supabase dashboard.
-3. Verify the three RLS policies appear under **Storage → Policies**.
-4. Confirm `pnpm typecheck` passes (it does as of the implementation commit).
+1. Run `pnpm db:push` — applies `0003_storage.sql` (bucket + storage RLS) and `0004_post_images.sql` (post_images table + RLS) via the Supabase CLI migration tracker. Do **not** run the SQL manually in the dashboard; doing so bypasses migration tracking and will cause `create policy` / `create table` errors on the next `db:push`.
+2. Run `pnpm db:gen` to regenerate `lib/supabase/types.ts` — then remove the `as any` casts in `lib/actions/posts.ts` (two spots, marked with `TODO`).
+3. Verify the bucket appears under **Storage** in the Supabase dashboard.
+4. Verify `post_images` appears under **Table Editor**.
+5. Confirm `pnpm typecheck && pnpm test` both pass (49 tests as of this implementation).

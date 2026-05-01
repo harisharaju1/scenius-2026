@@ -9,6 +9,8 @@ Generated TypeScript types live in `scenius-app/lib/supabase/types.ts` (regenera
 |---|---|
 | `0001_init.sql` | `profiles`, `posts`, `votes`, triggers, RLS, `posts_hot` view |
 | `0002_comments.sql` | `comments` table + RLS |
+| `0003_storage.sql` | `post-images` Supabase Storage bucket + RLS policies |
+| `0004_post_images.sql` | `post_images` table — image lifecycle tracking per post |
 
 ## ER diagram
 
