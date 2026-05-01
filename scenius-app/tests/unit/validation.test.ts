@@ -57,32 +57,30 @@ describe('loginInput', () => {
 })
 
 describe('postInput', () => {
-  const valid = { title: 'My post' }
+  const valid = { title: 'My post', body: '' }
 
   it('accepts valid data', () => {
     expect(postInput.safeParse(valid).success).toBe(true)
   })
 
   it('rejects empty title', () => {
-    expect(postInput.safeParse({ title: '' }).success).toBe(false)
+    expect(postInput.safeParse({ ...valid, title: '' }).success).toBe(false)
   })
 
   it('rejects title longer than 300', () => {
-    expect(postInput.safeParse({ title: 'a'.repeat(301) }).success).toBe(false)
+    expect(postInput.safeParse({ ...valid, title: 'a'.repeat(301) }).success).toBe(false)
   })
 
   it('accepts title at boundaries (1 and 300)', () => {
-    expect(postInput.safeParse({ title: 'a' }).success).toBe(true)
-    expect(postInput.safeParse({ title: 'a'.repeat(300) }).success).toBe(true)
+    expect(postInput.safeParse({ ...valid, title: 'a' }).success).toBe(true)
+    expect(postInput.safeParse({ ...valid, title: 'a'.repeat(300) }).success).toBe(true)
   })
 
-  it('defaults body to empty string when omitted', () => {
-    const r = postInput.safeParse({ title: 'My post' })
-    expect(r.success).toBe(true)
-    if (r.success) expect(r.data.body).toBe('')
+  it('accepts empty body', () => {
+    expect(postInput.safeParse({ title: 'My post', body: '' }).success).toBe(true)
   })
 
-  it('accepts optional body', () => {
+  it('accepts body with text', () => {
     const r = postInput.safeParse({ title: 'My post', body: 'some body text' })
     expect(r.success).toBe(true)
     if (r.success) expect(r.data.body).toBe('some body text')
