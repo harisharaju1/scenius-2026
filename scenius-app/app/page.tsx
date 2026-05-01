@@ -25,14 +25,14 @@ export default async function HomePage({
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
-        <nav className="flex gap-4 text-sm">
+        <nav className="flex text-sm">
           {VALID_SORT_KEYS.map((s) => (
             <Link
               key={s}
               href={`/?sort=${s}`}
-              className={
+              className={`flex min-h-[44px] items-center px-3 first:pl-0 ${
                 s === sort ? 'font-semibold' : 'text-neutral-500 hover:text-neutral-800'
-              }
+              }`}
             >
               {s}
             </Link>

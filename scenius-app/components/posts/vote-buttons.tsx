@@ -1,6 +1,6 @@
 'use client'
 
-import { useOptimistic, useTransition } from 'react'
+import { useOptimistic, useRef, useTransition } from 'react'
 import { castVoteAction } from '@/lib/actions/votes'
 import type { VoteValue } from '@/lib/voting'
 
@@ -12,6 +12,7 @@ type Props = {
 
 export function VoteButtons({ postId, initialScore, userVote }: Props) {
   const [isPending, startTransition] = useTransition()
+  const inFlight = useRef(false)
 
   const [optimistic, addOptimistic] = useOptimistic<
     { score: number; vote: VoteValue | null },
@@ -28,30 +29,33 @@ export function VoteButtons({ postId, initialScore, userVote }: Props) {
   )
 
   function handleVote(requested: VoteValue) {
+    if (inFlight.current) return
+    inFlight.current = true
     startTransition(async () => {
       addOptimistic({ requested })
       await castVoteAction(postId, requested)
+      inFlight.current = false
     })
   }
 
   return (
-    <div className="flex flex-col items-center gap-0.5 select-none">
+    <div className="flex flex-col items-center select-none">
       <button
         onClick={() => handleVote(1)}
         disabled={isPending}
         aria-label="Upvote"
-        className={`text-lg leading-none transition-colors ${
+        className={`flex min-h-[44px] min-w-[44px] items-center justify-center text-lg transition-colors ${
           optimistic.vote === 1 ? 'text-orange-500' : 'text-neutral-400 hover:text-orange-500'
         }`}
       >
         ▲
       </button>
-      <span className="text-sm font-medium tabular-nums">{optimistic.score}</span>
+      <span className="text-sm font-medium tabular-nums leading-none">{optimistic.score}</span>
       <button
         onClick={() => handleVote(-1)}
         disabled={isPending}
         aria-label="Downvote"
-        className={`text-lg leading-none transition-colors ${
+        className={`flex min-h-[44px] min-w-[44px] items-center justify-center text-lg transition-colors ${
           optimistic.vote === -1 ? 'text-blue-500' : 'text-neutral-400 hover:text-blue-500'
         }`}
       >

@@ -24,22 +24,22 @@ export async function Header() {
         <Link href="/" className="text-lg font-bold">
           scenius
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex items-center gap-1 text-sm">
           {username ? (
             <>
-              <span className="text-neutral-500">{username}</span>
+              <span className="px-2 text-neutral-500">{username}</span>
               <form action={logoutAction}>
-                <button type="submit" className="hover:text-neutral-800">
+                <button type="submit" className="min-h-[44px] px-2 hover:text-neutral-800">
                   logout
                 </button>
               </form>
             </>
           ) : (
             <>
-              <Link href="/login" className="hover:text-neutral-800">
+              <Link href="/login" className="min-h-[44px] px-2 flex items-center hover:text-neutral-800">
                 log in
               </Link>
-              <Link href="/register" className="font-medium hover:text-neutral-800">
+              <Link href="/register" className="min-h-[44px] px-2 flex items-center font-medium hover:text-neutral-800">
                 register
               </Link>
             </>
