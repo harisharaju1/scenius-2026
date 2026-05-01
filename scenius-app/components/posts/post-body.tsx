@@ -29,8 +29,8 @@ export function PostBody({ body }: { body: string }) {
               {children}
             </a>
           ),
-          // eslint-disable-next-line @next/next/no-img-element
           img: ({ src, alt }) => (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt={alt ?? ''} className="max-w-full rounded-md" />
           ),
           pre: ({ children }) => (

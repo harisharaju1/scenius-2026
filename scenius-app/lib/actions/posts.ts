@@ -39,9 +39,10 @@ export async function createPostAction(formData: FormData): Promise<ActionResult
 
   // Record embedded image paths for lifecycle management (cleanup on post delete).
   // Best-effort: a failure here does not fail post creation.
-  // TODO: remove `as any` cast after `pnpm db:gen` picks up 0004_post_images.sql
+  // TODO: remove cast after `pnpm db:gen` picks up 0004_post_images.sql
   const imagePaths = extractStoragePaths(parsed.data.body, bucketBase())
   if (imagePaths.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('post_images')
       .insert(imagePaths.map((storage_path) => ({ post_id: data.id, storage_path })))
@@ -61,7 +62,8 @@ export async function deletePostAction(postId: number): Promise<ActionResult<voi
   }
 
   // Fetch image paths before deletion so storage can be cleaned up afterward.
-  // TODO: remove `as any` cast after `pnpm db:gen` picks up 0004_post_images.sql
+  // TODO: remove cast after `pnpm db:gen` picks up 0004_post_images.sql
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: images } = await (supabase as any)
     .from('post_images')
     .select('storage_path')
