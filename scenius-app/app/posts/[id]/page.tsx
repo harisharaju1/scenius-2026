@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { DeleteButton } from '@/components/posts/delete-button'
 import { VoteButtons } from '@/components/posts/vote-buttons'
 import { CommentForm } from '@/components/posts/comment-form'
+import { PostBody } from '@/components/posts/post-body'
 import { createClient } from '@/lib/supabase/server'
 import { getPostById, getUserVoteForPost } from '@/lib/queries/posts'
 import { getCommentsByPostId } from '@/lib/queries/comments'
@@ -39,9 +40,7 @@ export default async function PostPage({
           </p>
         </div>
 
-        {post.body && (
-          <p className="whitespace-pre-wrap text-neutral-800">{post.body}</p>
-        )}
+        {post.body && <PostBody body={post.body} />}
 
         <div className="flex items-center gap-4 border-t pt-4">
           <VoteButtons postId={post.id} initialScore={post.score} userVote={userVote} />

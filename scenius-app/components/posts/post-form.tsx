@@ -9,7 +9,7 @@ import { postInput, type PostInput } from '@/lib/validation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { RichBodyEditor } from '@/components/posts/rich-body-editor'
 
 export function PostForm() {
   const router = useRouter()
@@ -18,8 +18,12 @@ export function PostForm() {
     register,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<PostInput>({ resolver: zodResolver(postInput), defaultValues: { title: '', body: '' } })
+
+  const body = watch('body')
 
   function onSubmit(data: PostInput) {
     const fd = new FormData()
@@ -52,7 +56,11 @@ export function PostForm() {
 
       <div className="space-y-1">
         <Label htmlFor="body">Body (optional)</Label>
-        <Textarea id="body" rows={6} {...register('body')} />
+        <RichBodyEditor
+          id="body"
+          value={body}
+          onChange={(v) => setValue('body', v, { shouldValidate: true })}
+        />
         {errors.body && <p className="text-sm text-red-500">{errors.body.message}</p>}
       </div>
 

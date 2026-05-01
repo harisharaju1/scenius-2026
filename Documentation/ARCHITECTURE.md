@@ -123,7 +123,7 @@ All figures assume the **Supabase free tier** (500 MB DB, 50k MAUs, no dedicated
 - Supabase free uses a shared PgBouncer pool. Vercel serverless functions each open a connection; at high concurrency you'll hit the **~60 direct connection limit**. Supabase's built-in pooler (transaction mode) is the first mitigation; Supabase Pro raises the limit.
 
 ### Image storage
-- **Not supported.** The schema has no file references and there is no Supabase Storage integration. Posts and comments are text-only. Adding images requires: a `storage_path` column on `posts`, `supabase.storage.from('images').upload(...)` in the create-post action, and a signed-URL query on read. This is out of scope for the current MVP.
+- **Supported via Supabase Storage.** Post bodies are Markdown text; images are embedded as `![alt](url)` links pointing to the public `post-images` bucket. Uploads happen client-side (browser → Supabase Storage direct, RLS-enforced). No `storage_path` column on `posts` — the URL lives inline in the Markdown body. See [`RICH_BODY_EDITOR.md`](./RICH_BODY_EDITOR.md) for the full design.
 
 ### Search
 - **No full-text search.** The feed is sorted by score/date/hot-rank; there is no `LIKE` or `tsvector` query. Postgres full-text search (a `to_tsvector` index on `title || body`) or an external index (Algolia, Typesense) would be needed.
