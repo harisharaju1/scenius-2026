@@ -28,6 +28,10 @@ export function LoginForm() {
     startTransition(async () => {
       const result = await loginAction(fd)
       if (!result.ok) {
+        if (result.errors.some((e) => e.field === 'unconfirmed')) {
+          router.push('/register/confirm')
+          return
+        }
         result.errors.forEach(({ field, message }) => {
           if (field === 'email' || field === 'password') {
             setError(field, { message })

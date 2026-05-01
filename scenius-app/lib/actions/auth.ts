@@ -64,6 +64,9 @@ export async function loginAction(formData: FormData): Promise<ActionResult<void
   const { error } = await supabase.auth.signInWithPassword(parsed.data)
 
   if (error) {
+    if (error.message.toLowerCase().includes('email not confirmed')) {
+      return fail([{ field: 'unconfirmed', message: 'email_not_confirmed' }])
+    }
     return fail([{ field: 'root', message: 'Invalid email or password' }])
   }
 
