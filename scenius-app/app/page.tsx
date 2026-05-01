@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { PostCard } from '@/components/posts/post-card'
 import { createClient } from '@/lib/supabase/server'
-import { getUserVotesForPosts, listPosts } from '@/lib/queries/posts'
+import { listPosts } from '@/lib/queries/posts'
 import { isValidSortKey, VALID_SORT_KEYS } from '@/lib/sorting'
 
 export default async function HomePage({
@@ -18,9 +18,6 @@ export default async function HomePage({
   } = await supabase.auth.getUser()
 
   const posts = await listPosts(sort)
-  const userVotes = user
-    ? await getUserVotesForPosts(user.id, posts.map((p) => p.id))
-    : new Map()
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6">
@@ -49,9 +46,7 @@ export default async function HomePage({
         {posts.length === 0 ? (
           <p className="text-neutral-500">No posts yet.</p>
         ) : (
-          posts.map((post) => (
-            <PostCard key={post.id} post={post} userVote={userVotes.get(post.id) ?? null} />
-          ))
+          posts.map((post) => <PostCard key={post.id} post={post} />)
         )}
       </div>
     </main>

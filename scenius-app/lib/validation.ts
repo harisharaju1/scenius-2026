@@ -19,6 +19,11 @@ export const postInput = z.object({
   body: z.string(),
 })
 
+export const commentInput = z.object({
+  body: z.string().min(1, 'Comment cannot be empty').max(10000, 'Must be at most 10000 characters'),
+})
+
 export type RegisterInput = z.infer<typeof registerInput>
 export type LoginInput = z.infer<typeof loginInput>
 export type PostInput = z.infer<typeof postInput>
+export type CommentInput = z.infer<typeof commentInput>
