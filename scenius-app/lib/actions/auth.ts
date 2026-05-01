@@ -1,10 +1,18 @@
 'use server'
 import 'server-only'
 
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { fail, ok, type ActionResult } from '@/lib/actions/result'
 import { createClient } from '@/lib/supabase/server'
 import { loginInput, registerInput } from '@/lib/validation'
+
+async function siteOrigin(): Promise<string> {
+  const h = await headers()
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3000'
+  const proto = h.get('x-forwarded-proto') ?? 'http'
+  return `${proto}://${host}`
+}
 
 export async function registerAction(formData: FormData): Promise<ActionResult<void>> {
   const parsed = registerInput.safeParse(Object.fromEntries(formData))
@@ -16,13 +24,12 @@ export async function registerAction(formData: FormData): Promise<ActionResult<v
 
   const { username, email, password } = parsed.data
   const supabase = await createClient()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { username },
-      emailRedirectTo: `${siteUrl}/callback`,
+      emailRedirectTo: `${await siteOrigin()}/callback`,
     },
   })
 
