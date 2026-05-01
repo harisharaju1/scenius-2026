@@ -38,8 +38,7 @@ export function RegisterForm() {
         })
         return
       }
-      router.push('/')
-      router.refresh()
+      router.push('/register/confirm')
     })
   }
 
